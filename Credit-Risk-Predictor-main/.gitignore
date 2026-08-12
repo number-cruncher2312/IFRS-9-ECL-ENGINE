@@ -1,0 +1,8 @@
+# Local data artifacts
+data/*.csv
+
+# Local app secrets
+.streamlit/secrets.toml
+
+# Python cache artifacts
+__pycache__/

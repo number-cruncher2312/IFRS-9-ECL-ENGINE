@@ -87,7 +87,30 @@ DEFAULT_CONFIG = {
         'NumberOfDependents',
         'NumberOfOpenCreditLinesAndLoans',
         'NumberRealEstateLoansOrLines'
-    ]
+    ],
+
+    # Zero-income transition configuration
+    # These are V1 synthetic assumptions, not empirical probabilities
+    'zero_income_transition': {
+        'improving_probability': 0.7,  # High chance of getting income when improving
+        'stable_probability': 0.2,     # Low chance of getting income when stable
+        'deteriorating_probability': 0.1, # Very low chance when deteriorating
+        'positive_income_distribution': {
+            'mean': 3000,
+            'std': 1500,
+            'min_value': 1000,
+            'max_value': 8000
+        }
+    },
+
+    # Special DebtRatio handling for zero-income borrowers
+    'debt_ratio_zero_income': {
+        'improving_mean': -0.2, 'improving_std': 0.1,
+        'stable_mean': 0.0, 'stable_std': 0.05,
+        'deteriorating_mean': 0.1, 'deteriorating_std': 0.1,
+        'min_value': 0.0,
+        'max_value': 4.0  # Conservative upper bound to prevent unreasonable values
+    }
 }
 
 def _validate_input_dataframe(df: pd.DataFrame) -> None:
@@ -204,6 +227,10 @@ def _apply_count_modification(
     modified = series.copy().astype(float)
 
     for i, trajectory in enumerate(trajectories):
+        # Skip modification for stable entries
+        if trajectory == 'stable':
+            continue
+            
         # Get trajectory-specific parameters
         mean = config[f'{trajectory}_mean']
         std = config[f'{trajectory}_std']
@@ -226,6 +253,134 @@ def _apply_count_modification(
     # Handle NaN values by filling with 0 (since these are count variables)
     modified = np.round(modified).fillna(0).astype(int)
 
+    if 'min_value' in config:
+        modified = np.maximum(modified, config['min_value'])
+    if 'max_value' in config:
+        modified = np.minimum(modified, config['max_value'])
+
+    return modified
+
+def _generate_positive_income(
+    n_samples: int,
+    config: dict,
+    rng: np.random.Generator
+) -> np.array:
+    """
+    Generate plausible positive income values for zero-income borrowers who transition to positive income.
+
+    Args:
+        n_samples: Number of positive income values to generate
+        config: Zero-income transition configuration
+        rng: Random number generator
+
+    Returns:
+        Array of generated positive income values
+    """
+    if n_samples == 0:
+        return np.array([])
+
+    pos_config = config['positive_income_distribution']
+
+    # Generate income values from normal distribution
+    incomes = rng.normal(pos_config['mean'], pos_config['std'], n_samples)
+
+    # Apply bounds
+    if 'min_value' in pos_config:
+        incomes = np.maximum(incomes, pos_config['min_value'])
+    if 'max_value' in pos_config:
+        incomes = np.minimum(incomes, pos_config['max_value'])
+
+    return incomes
+
+def _apply_zero_income_transition(
+    series: pd.Series,
+    trajectories: np.array,
+    zero_income_config: dict,
+    rng: np.random.Generator
+) -> pd.Series:
+    """
+    Apply zero-income specific transition logic.
+
+    For borrowers with MonthlyIncome == 0 at origination, determine whether they:
+    - Remain at zero income, or
+    - Transition to positive income
+
+    Args:
+        series: Original MonthlyIncome values
+        trajectories: Array of trajectory assignments for each row
+        zero_income_config: Zero-income transition configuration
+        rng: Random number generator
+
+    Returns:
+        Modified series with zero-income transitions applied
+    """
+    modified = series.copy().astype(float)
+
+    # Identify zero-income rows
+    zero_income_mask = series == 0
+    zero_income_indices = np.where(zero_income_mask)[0]
+
+    if len(zero_income_indices) == 0:
+        return modified
+
+    # For each zero-income borrower, determine if they transition to positive income
+    transition_probs = []
+    for i in zero_income_indices:
+        trajectory = trajectories[i]
+        prob_key = f'{trajectory}_probability'
+        transition_probs.append(zero_income_config[prob_key])
+
+    # Determine which zero-income borrowers transition to positive income
+    transition_decisions = rng.random(len(zero_income_indices)) < transition_probs
+
+    # Generate positive income for those who transition
+    n_transitions = np.sum(transition_decisions)
+    if n_transitions > 0:
+        positive_incomes = _generate_positive_income(n_transitions, zero_income_config, rng)
+        transition_idx = 0
+        for i, will_transition in zip(zero_income_indices, transition_decisions):
+            if will_transition:
+                modified.iloc[i] = positive_incomes[transition_idx]
+                transition_idx += 1
+
+    return modified
+
+def _apply_debt_ratio_zero_income(
+    series: pd.Series,
+    trajectories: np.array,
+    config: dict,
+    rng: np.random.Generator
+) -> pd.Series:
+    """
+    Apply special DebtRatio modification for zero-income borrowers.
+
+    Args:
+        series: Original DebtRatio values
+        trajectories: Array of trajectory assignments for each row
+        config: DebtRatio configuration for zero-income borrowers
+        rng: Random number generator
+
+    Returns:
+        Modified series with applied shocks for zero-income borrowers
+    """
+    modified = series.copy().astype(float)
+
+    # Identify zero-income rows (we'll need to know this from MonthlyIncome)
+    # This function will be called after MonthlyIncome is processed, so we need
+    # to identify zero-income borrowers differently. For now, we'll use a simple approach.
+
+    for i, trajectory in enumerate(trajectories):
+        # Get trajectory-specific parameters
+        mean = config[f'{trajectory}_mean']
+        std = config[f'{trajectory}_std']
+
+        # Generate shock for this specific row
+        shock = rng.normal(mean, std)
+
+        # Apply additive shock (not multiplicative) to avoid explosions
+        modified.iloc[i] = series.iloc[i] + shock
+
+    # Apply bounds
     if 'min_value' in config:
         modified = np.maximum(modified, config['min_value'])
     if 'max_value' in config:
@@ -296,13 +451,60 @@ def construct_current_snapshot(
                 rng
             )
         else:
-            # Handle continuous variables
-            current_df[var_name] = _apply_continuous_modification(
-                current_df[var_name],
-                trajectories,
-                var_config,
-                rng
-            )
+            # Handle continuous variables with special logic for zero-income cases
+            if var_name == 'MonthlyIncome':
+                # Apply zero-income specific transition logic first
+                current_df[var_name] = _apply_zero_income_transition(
+                    current_df[var_name],
+                    trajectories,
+                    merged_config['zero_income_transition'],
+                    rng
+                )
+
+                # Then apply regular continuous modification to non-zero income borrowers
+                # We need to separate zero and non-zero cases
+                non_zero_mask = current_df[var_name] > 0
+                if non_zero_mask.any():
+                    non_zero_modified = _apply_continuous_modification(
+                        current_df[var_name][non_zero_mask],
+                        trajectories[non_zero_mask],
+                        var_config,
+                        rng
+                    )
+                    current_df.loc[non_zero_mask, var_name] = non_zero_modified
+
+            elif var_name == 'DebtRatio':
+                # Apply special DebtRatio handling for zero-income borrowers
+                # First identify zero-income borrowers from the original data
+                zero_income_mask = origination_df['MonthlyIncome'] == 0
+
+                if zero_income_mask.any():
+                    # Apply special handling for zero-income borrowers
+                    debt_ratio_zero_income = _apply_debt_ratio_zero_income(
+                        current_df[var_name][zero_income_mask],
+                        trajectories[zero_income_mask],
+                        merged_config['debt_ratio_zero_income'],
+                        rng
+                    )
+                    current_df.loc[zero_income_mask, var_name] = debt_ratio_zero_income
+
+                if (~zero_income_mask).any():
+                    # Apply regular continuous modification for non-zero income borrowers
+                    debt_ratio_regular = _apply_continuous_modification(
+                        current_df[var_name][~zero_income_mask],
+                        trajectories[~zero_income_mask],
+                        var_config,
+                        rng
+                    )
+                    current_df.loc[~zero_income_mask, var_name] = debt_ratio_regular
+            else:
+                # Handle other continuous variables normally
+                current_df[var_name] = _apply_continuous_modification(
+                    current_df[var_name],
+                    trajectories,
+                    var_config,
+                    rng
+                )
 
     # Preserve SeriousDlqin2yrs for lineage but don't modify it
     # (it's the target variable, not a borrower characteristic)

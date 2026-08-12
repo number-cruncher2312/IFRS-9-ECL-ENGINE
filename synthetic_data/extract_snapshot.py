@@ -4,7 +4,7 @@ import numpy as np
 
 def extract_csv_snapshot():
     # Define paths
-    source_path = r'IFRS9-ECL-Engine\data\GiveMeSomeCredit-training.csv'
+    source_path = r'data\GiveMeSomeCredit-training.csv'
     output_folder = r'synthetic_data\credit_snapshot'
     output_path = os.path.join(output_folder, 'GiveMeSomeCredit-snapshot.csv')
 
