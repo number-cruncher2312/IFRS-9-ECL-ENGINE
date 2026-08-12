@@ -1,8 +1,6 @@
-#  Credit Risk Predictor
+# Credit Risk Predictor
 
-An end-to-end credit risk modeling project using **XGBoost** to predict the probability of a borrower experiencing financial distress. 
-
-###  [View Live App](https://credit-risk-predictor-kzwx6mz7hky2xc3ucvqgjj.streamlit.app/)
+A credit risk modeling project using **XGBoost** to predict the probability of a borrower experiencing financial distress.
 
 ---
 
@@ -15,18 +13,16 @@ Based on the *Kaggle "Give Me Some Credit"* dataset, the model achieves strong p
 
 ---
 
-##  Tech Stack
+## Tech Stack
 - **Modeling**: XGBoost, Scikit-Learn
-- **Dashboard**: Streamlit, Plotly
 - **Data Engineering**: Pandas, NumPy
 - **Persistence**: Joblib
 
 ## Repository Structure
 - `train_model.py`: End-to-end training pipeline (Cleaning -> Imputation -> Oversampling -> Training -> Evaluation).
-- `app.py`: Interactive Streamlit dashboard.
 - `model/`: Serialized XGBoost model (`xgb_model.pkl`).
 - `data/`: Dataset location and sourcing notes.
-- `requirements.txt`: Environment dependencies for deployment.
+- `requirements.txt`: Python dependencies for the model.
 
 ## Dataset
 This repository does **not** version large raw datasets.
@@ -37,7 +33,7 @@ This repository does **not** version large raw datasets.
    - `data/cs-training.csv` (preferred)
    - `cs-training.csv` (backward-compatible fallback)
 
-##  How to Run Locally
+## How to Use
 1. Clone the repository:
    ```bash
    git clone https://github.com/number-cruncher2312/Credit-Risk-Predictor.git
@@ -48,9 +44,20 @@ This repository does **not** version large raw datasets.
    pip install -r requirements.txt
    ```
 3. Download and place the dataset (see **Dataset** section).
-4. Run the dashboard:
+4. Train the model:
    ```bash
-   streamlit run app.py
+   python train_model.py
+   ```
+   This produces `model/xgb_model.pkl`.
+
+5. Load and use the model in Python:
+   ```python
+   import joblib
+   import pandas as pd
+
+   model = joblib.load("model/xgb_model.pkl")
+   # Prepare input DataFrame with the expected feature columns
+   prediction = model.predict_proba(input_df)[:, 1]
    ```
 
 ---
