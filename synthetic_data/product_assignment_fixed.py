@@ -65,7 +65,6 @@ V1_INACTIVE_PRODUCTS: set = {
 # Default product probabilities for V1 (only active products)
 DEFAULT_PRODUCT_PROBABILITIES: Dict[str, float] = V1_ACTIVE_PRODUCT_PROBABILITIES.copy()
 
-
 # ---------------------------------------------------------------------------
 # Product Assignment Functions
 # Note: V1 assignments use ONLY V1_ACTIVE_PRODUCT_PROBABILITIES
