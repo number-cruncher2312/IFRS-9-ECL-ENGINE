@@ -8,6 +8,7 @@ synthetic assumptions used consistently for:
   - balance / EAD generation
   - EIR assumptions
   - remaining lifetime
+  - product mix assignment
 
 IMPORTANT: All balance, EIR, lifetime, and LGD numbers in this file are
 SYNTHETIC V1 ASSUMPTIONS for wiring only. They are NOT empirical values,
@@ -37,6 +38,33 @@ The V1 taxonomy models exactly five retail-lending products:
   - student_loan
   - other_personal_loan
 
+Product Mix Methodology
+-----------------------
+The current product mix is calibrated ONLY to directly comparable account-count data
+for three categories:
+
+* Credit card: ~74.82% (643.3 million accounts)
+* Auto: ~12.80% (110.0 million accounts)
+* Mortgage + HELOC: ~12.38% (106.4 million accounts)
+
+These sum to 859.7 million directly comparable accounts.
+
+IMPORTANT: This is an observed-account-based approximation, NOT a claim that these
+percentages represent the entire U.S. consumer-loan market. The probabilities are
+derived from authoritative account-count data and are used to generate synthetic
+loan portfolios that reflect the relative prevalence of different product types.
+
+Student loans are NOT mechanically included in this calculation. The available
+student-loan figure is a borrower/recipient count rather than a directly comparable
+account count, so we do not assume that each borrower has 3-4 accounts or otherwise
+invent a conversion factor.
+
+"Other personal loans" are likewise not included due to lack of authoritative
+account-level estimates.
+
+The architecture is designed to be flexible enough that student loans and other
+personal loans can be added later if we obtain defensible account-level estimates.
+
 HELOC note
 ----------
 Home-equity lines of credit (HELOC) are NOT a separate product in V1;
@@ -58,7 +86,6 @@ calibration-grade use.
 
 from typing import Dict, Any, Optional
 
-
 # ---------------------------------------------------------------------------
 # Product type enum (string constants keep the rest of the code stable)
 # ---------------------------------------------------------------------------
@@ -70,7 +97,6 @@ PRODUCT_TYPES = {
     "other_personal_loan",
 }
 
-
 # ---------------------------------------------------------------------------
 # Security status enum
 # ---------------------------------------------------------------------------
@@ -78,7 +104,6 @@ SECURITY_STATUS = {
     "secured",
     "unsecured",
 }
-
 
 # ---------------------------------------------------------------------------
 # LGD categories (one per product in V1)
@@ -90,7 +115,6 @@ LGD_CATEGORIES = {
     "LGD_STUDENT",
     "LGD_UNSECURED",
 }
-
 
 # ---------------------------------------------------------------------------
 # Core taxonomy: per-product synthetic V1 assumptions
@@ -222,7 +246,6 @@ PRODUCT_TAXONOMY: Dict[str, Dict[str, Any]] = {
     },
 }
 
-
 # ---------------------------------------------------------------------------
 # LGD category -> synthetic V1 LGD rate
 #
@@ -236,7 +259,6 @@ LGD_RATES: Dict[str, float] = {
     "LGD_UNSECURED": 0.45,       # other personal loan (unsecured)
 }
 
-
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------
@@ -249,7 +271,6 @@ def get_lgd_rate(product_type: str) -> float:
         )
     return LGD_RATES[PRODUCT_TAXONOMY[product_type]["lgd_category"]]
 
-
 def get_product_config(product_type: str) -> Dict[str, Any]:
     """Return the full V1 config block for a product type."""
     if product_type not in PRODUCT_TAXONOMY:
@@ -258,7 +279,6 @@ def get_product_config(product_type: str) -> Dict[str, Any]:
             f"Valid types: {sorted(PRODUCT_TYPES)}"
         )
     return PRODUCT_TAXONOMY[product_type]
-
 
 # ---------------------------------------------------------------------------
 # Internal validation tests (lightweight, self-contained)
@@ -272,7 +292,6 @@ _VALID_SECURITY_FOR_COLLATERAL = {
     "vehicle": "secured",
     None: "unsecured",
 }
-
 
 def _run_validation_tests() -> None:
     """Validate the V1 taxonomy invariants. Raises AssertionError on failure."""
@@ -371,7 +390,6 @@ def _run_validation_tests() -> None:
         raise AssertionError(
             "get_product_config did not raise ValueError for unknown product"
         )
-
 
 if __name__ == "__main__":
     _run_validation_tests()
