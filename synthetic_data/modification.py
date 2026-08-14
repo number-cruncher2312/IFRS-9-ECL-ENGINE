@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
             'deteriorating_mean': 0.10, 'deteriorating_std': 0.08,
             'min_value': 0.0, 'max_value': 1.0
         },
+        
         'DebtRatio': {
             'improvement_direction': 'negative',
             'stable_mean': 0.0, 'stable_std': 0.05,

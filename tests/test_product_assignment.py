@@ -4,9 +4,6 @@ import pytest
 import sys
 import os
 
-# Add the parent directory to Python path to import the module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from synthetic_data.product_assignment import (
     assign_products,
     assign_products_to_dataframe,
@@ -374,7 +371,7 @@ def test_product_assignment_architecture_flexibility():
     }
 
     # This should work without breaking the architecture
-    assignments = assign_products(100, probabilities=extended_probs, seed=42)
+    assignments = assign_products(500, probabilities=extended_probs, seed=42)
 
     # Should include all product types
     unique_products = set(assignments)

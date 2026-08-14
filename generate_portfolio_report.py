@@ -7,23 +7,20 @@ import os
 import numpy as np
 import pandas as pd
 
-# Add the synthetic_data directory to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'synthetic_data'))
-
-from balance_generator import (
+from synthetic_data.balance_generator import (
     generate_balances_for_product,
     generate_balances_for_multiple_products,
     generate_ead_from_balances,
     validate_balance_generation
 )
-from portfolio_generator import (
+from synthetic_data.portfolio_generator import (
     generate_base_portfolio,
     generate_portfolio_with_statistics,
     validate_portfolio_reproducibility,
     validate_portfolio_properties
 )
-from product_assignment import assign_products, DEFAULT_PRODUCT_PROBABILITIES
-from product_taxonomy import PRODUCT_TYPES, PRODUCT_TAXONOMY
+from synthetic_data.product_assignment import assign_products, DEFAULT_PRODUCT_PROBABILITIES
+from synthetic_data.product_taxonomy import PRODUCT_TYPES, PRODUCT_TAXONOMY
 
 def test_balance_generator():
     """Test the balance generator module."""

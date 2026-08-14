@@ -4,9 +4,6 @@ import pytest
 import sys
 import os
 
-# Add the parent directory to Python path to import the module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from synthetic_data.portfolio_generator import (
     generate_base_portfolio,
     generate_portfolio_with_statistics,

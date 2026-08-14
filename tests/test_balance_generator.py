@@ -140,7 +140,7 @@ def test_ead_generation():
 def test_balance_validation():
     """Test balance validation function."""
     # Create test assignments and balances
-    assignments = ["mortgage", "auto_loan", "credit_card"]
+    assignments = ["mortgage", "mortgage", "auto_loan", "credit_card"]
     balances_dict = {
         "mortgage": np.array([200000.0, 300000.0]),
         "auto_loan": np.array([25000.0]),
@@ -167,18 +167,18 @@ def test_balance_validation_errors():
     assignments = ["mortgage", "auto_loan"]
     balances_dict = {"mortgage": np.array([200000.0])}  # Missing auto_loan
 
-    with pytest.raises(ValueError, match="Balances contain products not in assignments"):
+    with pytest.raises(ValueError, match="Total balance count .* != assignment count"):
         validate_balance_generation(balances_dict, assignments)
 
     # Test with non-positive balances
-    assignments = ["mortgage"]
+    assignments = ["mortgage", "mortgage"]
     balances_dict = {"mortgage": np.array([-1000.0, 200000.0])}
 
     with pytest.raises(ValueError, match="non-positive balances"):
         validate_balance_generation(balances_dict, assignments)
 
     # Test with balances below minimum
-    assignments = ["mortgage"]
+    assignments = ["mortgage", "mortgage"]
     config = PRODUCT_TAXONOMY["mortgage"]["balance"]
     balances_dict = {"mortgage": np.array([config["min"] - 1000, 200000.0])}
 
@@ -186,7 +186,7 @@ def test_balance_validation_errors():
         validate_balance_generation(balances_dict, assignments)
 
     # Test with balances above maximum
-    assignments = ["mortgage"]
+    assignments = ["mortgage", "mortgage"]
     balances_dict = {"mortgage": np.array([200000.0, config["max"] + 1000])}
 
     with pytest.raises(ValueError, match="above maximum"):

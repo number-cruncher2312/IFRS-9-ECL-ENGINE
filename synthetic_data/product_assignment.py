@@ -128,24 +128,44 @@ def assign_products(
     else:
         probabilities = probabilities.copy()
 
-    # Validate the probabilities
-    validate_product_probabilities(probabilities)
-
     # Handle the include_all_products option
     if include_all_products:
         # Add any missing products with equal probabilities
         missing_products = PRODUCT_TYPES - set(probabilities.keys())
         if missing_products:
-            # Calculate remaining probability to distribute equally
+            # If using default probabilities (which sum to 1.0), we need to scale them down
+            # to make room for the missing products
             current_total = sum(probabilities.values())
-            remaining_prob = 1.0 - current_total
-            equal_share = remaining_prob / len(missing_products)
+            if np.isclose(current_total, 1.0):
+                # Scale down existing probabilities to make room for missing products
+                n_existing = len(probabilities)
+                n_missing = len(missing_products)
+                total_products = n_existing + n_missing
 
-            for product in missing_products:
-                probabilities[product] = equal_share
+                # Scale each existing product to make room for missing products
+                scale_factor = n_existing / total_products
+                for product in list(probabilities.keys()):
+                    probabilities[product] *= scale_factor
 
-            # Re-validate after adding missing products
+                # Calculate equal share for missing products
+                equal_share = 1.0 / total_products
+
+                # Add missing products with equal share
+                for product in missing_products:
+                    probabilities[product] = equal_share
+            else:
+                # Original logic: distribute remaining probability equally
+                remaining_prob = 1.0 - current_total
+                equal_share = remaining_prob / len(missing_products)
+
+                for product in missing_products:
+                    probabilities[product] = equal_share
+
+            # Validate after adding missing products
             validate_product_probabilities(probabilities)
+    else:
+        # Validate the probabilities
+        validate_product_probabilities(probabilities)
 
     # Extract product names and probabilities for sampling
     products = list(probabilities.keys())

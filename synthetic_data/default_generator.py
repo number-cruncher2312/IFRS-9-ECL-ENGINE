@@ -60,9 +60,15 @@ def _validate_pd_values(pd_values: Union[List[float], np.ndarray]) -> None:
     if len(pd_array) == 0:
         raise ValueError("PD values array cannot be empty")
 
-    if not np.all((pd_array >= 0) & (pd_array <= 1)):
-        invalid_mask = (pd_array < 0) | (pd_array > 1)
-        invalid_values = pd_array[invalid_mask]
+    # Check for NaN values
+    if np.isnan(pd_array).any():
+        nan_count = np.isnan(pd_array).sum()
+        raise ValueError(f"PD values contain {nan_count} NaN values")
+
+    invalid_mask = (pd_array < 0) | (pd_array > 1)
+    invalid_values = pd_array[invalid_mask]
+
+    if len(invalid_values) > 0:
         raise ValueError(
             f"PD values must be in [0, 1] range. "
             f"Found invalid values: {invalid_values[:10]}... "
@@ -284,7 +290,7 @@ def validate_default_reproducibility(
     print(f"Default reproducibility validated: {n_trials} trials with seed {seed} produced identical results")
     return True
 
-def test_bernoulli_convergence(
+def _test_bernoulli_convergence(
     pd_value: float,
     n_samples: int = 10000,
     n_trials: int = 100,
@@ -360,9 +366,9 @@ def generate_default_report(
 
     # Test convergence for a few PD values
     convergence_tests = {
-        "low_pd": test_bernoulli_convergence(0.05, n_samples=10000, n_trials=50, seed=seed),
-        "medium_pd": test_bernoulli_convergence(0.10, n_samples=10000, n_trials=50, seed=seed),
-        "high_pd": test_bernoulli_convergence(0.20, n_samples=10000, n_trials=50, seed=seed)
+        "low_pd": _test_bernoulli_convergence(0.05, n_samples=10000, n_trials=50, seed=seed),
+        "medium_pd": _test_bernoulli_convergence(0.10, n_samples=10000, n_trials=50, seed=seed),
+        "high_pd": _test_bernoulli_convergence(0.20, n_samples=10000, n_trials=50, seed=seed)
     }
 
     return {
@@ -426,7 +432,7 @@ def _run_validation_tests() -> None:
         pass  # Expected
 
     # Test 7: Bernoulli convergence
-    convergence = test_bernoulli_convergence(0.10, n_samples=1000, n_trials=30, seed=42)
+    convergence = _test_bernoulli_convergence(0.10, n_samples=1000, n_trials=30, seed=42)
     assert convergence["error_from_target"] < 0.02, "Convergence should be reasonable"
 
     # Test 8: Report generation

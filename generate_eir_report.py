@@ -29,7 +29,7 @@ def generate_comprehensive_eir_report():
         # Run internal validation tests first
         print("1. Running internal validation tests...")
         _run_validation_tests()
-        print("   Internal validation tests passed")
+        print("   ✓ Internal validation tests passed")
 
         # Test all products individually
         print("\n2. Testing all products individually...")

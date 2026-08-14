@@ -15,7 +15,7 @@ from synthetic_data.default_generator import (
     get_default_statistics,
     validate_default_reproducibility,
     generate_default_report,
-    test_bernoulli_convergence,
+    _test_bernoulli_convergence,
     _validate_pd_values
 )
 
@@ -184,10 +184,10 @@ def test_high_pd_loans_have_higher_default_rates():
     assert low_rate < medium_rate < high_rate, \
         f"Default rates should increase with PD: low={low_rate:.4f}, medium={medium_rate:.4f}, high={high_rate:.4f}"
 
-def test_bernoulli_convergence():
+def test_bernoulli_convergence_function():
     """Test Bernoulli convergence properties."""
     # Test with a fixed PD value
-    convergence = test_bernoulli_convergence(0.10, 1000, 50, 42)
+    convergence = _test_bernoulli_convergence(pd_value=0.10, n_samples=1000, n_trials=50, seed=42)
 
     # Check that mean empirical rate is close to target
     assert convergence["mean_empirical_rate"] > 0.08, "Mean rate should be above 8%"
