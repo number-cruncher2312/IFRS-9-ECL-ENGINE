@@ -353,12 +353,30 @@ def _generate_portfolio_components(
     )
 
     # Flatten balances and generate EAD (V1: EAD = balance)
-    all_balances = []
-    all_eads = []
+        # Preserve original product-assignment order when mapping
+    # grouped balance-generator outputs back to portfolio rows.
+    product_indices = {}
+
+    for i, product in enumerate(product_assignments):
+        if product not in product_indices:
+            product_indices[product] = []
+        product_indices[product].append(i)
+
+    all_balances = [None] * len(product_assignments)
+    all_eads = [None] * len(product_assignments)
+
     for product, balances in balances_dict.items():
+        indices = product_indices[product]
         eads = generate_ead_from_balances(balances)
-        all_balances.extend(balances)
-        all_eads.extend(eads)
+
+        for j, idx in enumerate(indices):
+            all_balances[idx] = balances[j]
+            all_eads[idx] = eads[j]
+    if any(x is None for x in all_balances):
+        raise ValueError("Some loans did not receive a balance")
+
+    if any(x is None for x in all_eads):
+        raise ValueError("Some loans did not receive EAD")
 
     # 3. Generate EIR values
     eir_dict = generate_eir_for_multiple_products(
